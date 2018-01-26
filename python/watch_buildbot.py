@@ -44,6 +44,12 @@ def get_builders_without_active_workers(urlroot, builderids):
         else:
             pass
     return builders_with_no_workers
+
+def get_buildrequest(urlroot, buildrequestid):
+    url = "%s/buildrequests?buildrequestid=%d" % (urlroot, buildrequestid)
+    response = urllib.urlopen(url)
+    buildrequest = json.loads(response.read())["buildrequests"][0]
+    return buildrequest
     
 def get_builder_status(urlroot, builderids):
     '''For each builder id:  Return the latest complete builds pass or fail status.  Also, return if that builder still has anything building.
@@ -72,17 +78,27 @@ def get_builder_status(urlroot, builderids):
     #  EXCEPTION: 4
     #  RETRY    : 5
     #  CANCELLED: 6
+
+
+    # status:  { builderid : [success?, building?], ... }
     status = {}
     for builderid in builderids:
-        url = "%s/builds?builderid__eq=%d&order=-buildid&limit=2&field=complete&field=buildid&field=results&field=builderid" % (urlroot, builderid)
+        url = "%s/builds?builderid__eq=%d&order=-buildid&limit=2" % (urlroot, builderid)
         response = urllib.urlopen(url)
         builds = json.loads(response.read())["builds"]
         s = 0
         if len(builds) >= 1: # there have been at least 2 builds...:
             if builds[0]["complete"]:
-                # status:  (builderid, success?, building?)
                 status[builderid] = [builds[0]["results"] == 0, False]
             else:
+                # most recent build not complete.  How long is it not
+                # complete for?  If taking more than, say 3 hours, better
+                # notify  somebody...
+                elapsed_time = (time.time() - builds[0]["started_at"])/3600
+                if elapsed_time > 6:
+                    status[builderid] = [False, False] # report an error
+                    continue
+                
                 if len(builds) >=2:
                     if builds[1]["complete"]:
                         status[builderid] = [builds[1]["results"] == 0, True]
