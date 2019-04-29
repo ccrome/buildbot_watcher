@@ -4,7 +4,7 @@ import time
 import json
 import sys
 import os
-import urllib
+import urllib.request
 
 master="192.168.0.182"
 port  =8010
@@ -18,7 +18,7 @@ RED           = ["#255.0.0", "#255.0.0"]
 def get_builderids(urlroot):
     '''Return a list of all the builder ids'''
     url = "%s/builders?field=builderid" % (urlroot)
-    response=urllib.urlopen(url)
+    response=urllib.request.urlopen(url)
     response_json = json.loads(response.read())["builders"]
     builderids = [x["builderid"] for x in response_json]
     return builderids
@@ -27,7 +27,7 @@ def get_builderids(urlroot):
 def get_builders_without_active_workers(urlroot, builderids):
     '''Find any builders that don't have active workers.  These will never get built... and should be alarmed.'''
     url = "%s/workers?field=name&field=connected_to&field=configured_on&field=name&field=workerid"  % (urlroot)
-    response=urllib.urlopen(url)
+    response=urllib.request.urlopen(url)
     response_json = json.loads(response.read())["workers"]
     workers = list()
     builders_with_no_workers = list(builderids)
@@ -47,7 +47,7 @@ def get_builders_without_active_workers(urlroot, builderids):
 
 def get_buildrequest(urlroot, buildrequestid):
     url = "%s/buildrequests?buildrequestid=%d" % (urlroot, buildrequestid)
-    response = urllib.urlopen(url)
+    response = urllib.request.urlopen(url)
     buildrequest = json.loads(response.read())["buildrequests"][0]
     return buildrequest
     
@@ -84,7 +84,7 @@ def get_builder_status(urlroot, builderids):
     status = {}
     for builderid in builderids:
         url = "%s/builds?builderid__eq=%d&order=-buildid&limit=2" % (urlroot, builderid)
-        response = urllib.urlopen(url)
+        response = urllib.request.urlopen(url)
         builds = json.loads(response.read())["builds"]
         s = 0
         if len(builds) >= 1: # there have been at least 2 builds...:
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     check_interval = 10.0
     uart = "/dev/ttyUSB0"
     ser = open_serial_port(uart)
-    ser.write("c\n")
+    ser.write("c\n".encode('utf-8'))
     wakeup_time = time.time()
     blinker_phase = 0
     while(1):
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             try:
                 builderids, color_list = get_color_list(urlroot)
             except IOError as e:
-                print "Print got error: ", e
+                print ("Print got error: ", e)
                 continue
         else:
             time.sleep(0.5)
@@ -160,9 +160,9 @@ if __name__ == "__main__":
             color = color_list[builderid][blinker_phase]
             msg = "L%d%s\n" % (builderid, color)
             try:
-                ser.write(msg)
+                ser.write(msg.encode('utf-8'))
             except:
-                print "lost serial port, opening again."
+                print ("lost serial port, opening again.")
                 ser = open_serial_port(uart)
             
             
