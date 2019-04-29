@@ -4,7 +4,10 @@ import time
 import json
 import sys
 import os
-import urllib.request
+if sys.version_info > (3,0):
+    from urllib.request import urlopen
+else:
+    from urllib import urlopen
 
 master="192.168.0.182"
 port  =8010
@@ -15,11 +18,17 @@ BLINKING_RED  = ["#255.0.0", "#0.0.0"]
 GREEN         = ["#0.255.0", "#0.255.0"]
 RED           = ["#255.0.0", "#255.0.0"]
 
+def read(response):
+    x = response.read()
+    if sys.version_info > (3,0):
+        x = x.decode('UTF-8')
+    return x
+
 def get_builderids(urlroot):
     '''Return a list of all the builder ids'''
     url = "%s/builders?field=builderid" % (urlroot)
-    response=urllib.request.urlopen(url)
-    response_json = json.loads(response.read())["builders"]
+    response=urlopen(url)
+    response_json = json.loads(read(response))["builders"]
     builderids = [x["builderid"] for x in response_json]
     return builderids
 
@@ -27,8 +36,8 @@ def get_builderids(urlroot):
 def get_builders_without_active_workers(urlroot, builderids):
     '''Find any builders that don't have active workers.  These will never get built... and should be alarmed.'''
     url = "%s/workers?field=name&field=connected_to&field=configured_on&field=name&field=workerid"  % (urlroot)
-    response=urllib.request.urlopen(url)
-    response_json = json.loads(response.read())["workers"]
+    response=urlopen(url)
+    response_json = json.loads(read(response))["workers"]
     workers = list()
     builders_with_no_workers = list(builderids)
     for worker in response_json:
@@ -47,8 +56,8 @@ def get_builders_without_active_workers(urlroot, builderids):
 
 def get_buildrequest(urlroot, buildrequestid):
     url = "%s/buildrequests?buildrequestid=%d" % (urlroot, buildrequestid)
-    response = urllib.request.urlopen(url)
-    buildrequest = json.loads(response.read())["buildrequests"][0]
+    response = urlopen(url)
+    buildrequest = json.loads(read(response))["buildrequests"][0]
     return buildrequest
     
 def get_builder_status(urlroot, builderids):
@@ -84,8 +93,8 @@ def get_builder_status(urlroot, builderids):
     status = {}
     for builderid in builderids:
         url = "%s/builds?builderid__eq=%d&order=-buildid&limit=2" % (urlroot, builderid)
-        response = urllib.request.urlopen(url)
-        builds = json.loads(response.read())["builds"]
+        response = urlopen(url)
+        builds = json.loads(read(response))["builds"]
         s = 0
         if len(builds) >= 1: # there have been at least 2 builds...:
             if builds[0]["complete"]:
